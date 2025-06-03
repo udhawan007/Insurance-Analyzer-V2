@@ -18,7 +18,7 @@ with st.sidebar:
     st.title("📄 About the Analyzer")
     st.info(
         """
-        This app uses Google's Gemini AI to analyze health insurance brochures. 
+        This app uses AI to analyze health insurance brochures. 
         It extracts key features and presents them in a clear, easy-to-read table.
         """
     )
@@ -26,10 +26,10 @@ with st.sidebar:
     st.header("How to Use")
     st.markdown(
         """
-        1.  Make sure you have added your **Google AI API Key** in the app's settings.
-        2.  **Upload a PDF** of the insurance plan on the main page.
-        3.  Click the **"Analyze This Brochure"** button.
-        4.  Review the **Analysis Results** table.
+        
+        1.  **Upload a PDF** of the insurance plan on the main page.
+        2.  Click the **"Analyze This Brochure"** button.
+        3.  Review the **Analysis Results** table.
         """
     )
     st.warning("The analysis is AI-generated and for informational purposes only. Always verify details with the official policy document.")
