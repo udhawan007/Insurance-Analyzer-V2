@@ -13,8 +13,6 @@ st.set_page_config(
 
 # --- Sidebar ---
 with st.sidebar:
-    # Using an image URL directly
-    st.image("https://i.imgur.com/MACEpDI.png")
     st.title("💎 About Prism")
     st.info(
         """
@@ -96,7 +94,7 @@ Please generate the Markdown table and the summary as requested.
 # Using columns for a more professional header layout
 col1, col2 = st.columns([1, 4])
 with col1:
-    st.image("https://i.imgur.com/v3A414y.png", width=150) # A logo for Prism
+    st.image("logo.png", width=150) # Using the local file you uploaded
 with col2:
     st.title("Prism")
     st.subheader("Your AI Health Insurance Assistant")
@@ -137,5 +135,5 @@ if uploaded_files and len(uploaded_files) >= 2:
 elif uploaded_files and len(uploaded_files) < 2:
     st.warning("⚠️ Please upload at least two PDF files to enable the comparison feature.")
 else:
-    # This is the main placeholder image when no files are uploaded
-    st.image("https://i.imgur.com/G5s3jH0.png")
+    # This is the placeholder image when no files are uploaded
+    st.image("main_image.png")
