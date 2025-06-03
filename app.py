@@ -7,18 +7,19 @@ import os
 # --- Page Configuration ---
 # This MUST be the very first Streamlit command
 st.set_page_config(
-    page_title="Prism - Your heath insurance assistant",
-    page_icon="⚖️",
+    page_title="Prism",
+    page_icon="💎",
     layout="wide"
 )
 
 # --- Sidebar ---
 with st.sidebar:
-    st.title("⚖️ About the Comparator")
+    st.title("💎 About Prism")
     st.info(
         """
-        This app uses AI to compare health insurance plans. 
-        Upload two or more brochures to see a side-by-side analysis of their key features.
+        **Prism** is an AI-powered assistant designed to bring clarity to complex health insurance plans. 
+        
+        It compares policy brochures side-by-side, helping you understand the key differences.
         """
     )
     st.divider()
@@ -57,10 +58,9 @@ def pdf_to_text(uploaded_file):
             text += (page.extract_text() or "") + "\n"
         return text
     except Exception as e:
-        # Return an error string instead of calling st.error directly
         return f"Error reading {uploaded_file.name}: {e}"
 
-# --- The NEW Comparison Prompt ---
+# --- The Comparison Prompt ---
 comparison_prompt = """
 You are an expert AI Health Insurance Analyst specializing in comparative analysis. Your task is to meticulously analyze the text from two separate insurance policy brochures, which will be provided to you labeled as 'Plan 1' and 'Plan 2'.
 
@@ -92,30 +92,29 @@ Please generate the Markdown table and the summary as requested.
 
 
 # --- Main App Interface ---
-st.title("⚖️ Health Insurance Plan Comparator")
-st.markdown("Upload two or more insurance brochures (PDF) to compare their features side-by-side.")
+st.title("💎 Prism")
+st.subheader("Your AI Health Insurance Assistant")
+st.markdown("---") # Adds a divider line
 
 # Use accept_multiple_files=True to allow multiple uploads
-uploaded_files = st.file_uploader("Choose PDF files...", type=["pdf"], accept_multiple_files=True)
+uploaded_files = st.file_uploader("Upload two or more insurance brochures (PDF) to compare:", type=["pdf"], accept_multiple_files=True)
 
 # Only show the compare button if 2 or more files are uploaded
 if uploaded_files and len(uploaded_files) >= 2:
     if st.button(f"Compare {len(uploaded_files)} Plans", type="primary"):
         with st.spinner(f"Reading and analyzing {len(uploaded_files)} brochures... This may take a moment. 🤔"):
             
-            # --- Text Extraction and Prompt Creation ---
             plan_texts = []
-            for i, file in enumerate(uploaded_files[:2]): # Limit to first 2 files for this version
+            # We limit the comparison to the first 2 files for a clear side-by-side table
+            for i, file in enumerate(uploaded_files[:2]):
                 text = pdf_to_text(file)
                 if "Error reading" in text:
                     st.error(text)
                     st.stop()
                 plan_texts.append(f"--- PLAN {i+1} ({file.name}) TEXT START ---\n\n{text}\n\n--- PLAN {i+1} TEXT END ---")
 
-            # Combine all parts into the final prompt
             final_prompt_for_ai = f"{comparison_prompt}\n\n{''.join(plan_texts)}"
 
-            # --- AI Call and Display ---
             try:
                 model = genai.GenerativeModel('models/gemini-1.5-flash')
                 response = model.generate_content(final_prompt_for_ai)
