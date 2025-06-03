@@ -5,12 +5,35 @@ from io import BytesIO
 import os
 
 # --- Page Configuration ---
-# Set page configuration at the very top
+# This MUST be the first Streamlit command in your script
 st.set_page_config(
     page_title="Health Insurance Analyzer",
     page_icon="📄",
     layout="wide"
 )
+
+# --- Sidebar ---
+# This section creates the sidebar with information and instructions
+with st.sidebar:
+    st.title("📄 About the Analyzer")
+    st.info(
+        """
+        This app uses Google's Gemini AI to analyze health insurance brochures. 
+        It extracts key features and presents them in a clear, easy-to-read table.
+        """
+    )
+    st.divider()
+    st.header("How to Use")
+    st.markdown(
+        """
+        1.  Make sure you have added your **Google AI API Key** in the app's settings.
+        2.  **Upload a PDF** of the insurance plan on the main page.
+        3.  Click the **"Analyze This Brochure"** button.
+        4.  Review the **Analysis Results** table.
+        """
+    )
+    st.warning("The analysis is AI-generated and for informational purposes only. Always verify details with the official policy document.")
+
 
 # --- AI and API Configuration ---
 # Fetch API key from Streamlit secrets and configure the AI model
@@ -18,10 +41,10 @@ try:
     api_key = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=api_key)
 except KeyError:
-    st.error("🔴 Error: GOOGLE_API_KEY not found. Please add it to your Streamlit Secrets in the app settings.")
+    st.error("🔴 **Error:** `GOOGLE_API_KEY` not found. Please go to 'Manage app' -> 'Secrets' and add your key.")
     st.stop()
 except Exception as e:
-    st.error(f"🔴 Error configuring the AI model: {e}")
+    st.error(f"🔴 **Error configuring the AI model:** {e}")
     st.stop()
 
 
@@ -29,20 +52,17 @@ except Exception as e:
 def pdf_to_text(uploaded_file):
     """Extracts text from an uploaded PDF file."""
     try:
-        # Use BytesIO to handle the uploaded file in memory
         file_bytes = BytesIO(uploaded_file.read())
         reader = pdf.PdfReader(file_bytes)
         text = ""
         for page in reader.pages:
-            # Add a space after each page's text to ensure separation
-            text += (page.extract_text() or "") + " "
+            text += (page.extract_text() or "") + "\n"
         return text
     except Exception as e:
         st.error(f"Error reading PDF: {e}")
         return None
 
 # --- The Master Prompt ---
-# This is the detailed set of instructions for the AI
 master_prompt = """
 You are an expert AI Health Insurance Analyst. Your task is to meticulously analyze the provided text from a health insurance brochure. Your goal is to extract specific, vital information about the plan's features, benefits, and limitations.
 
@@ -73,43 +93,36 @@ Here are the features you must extract:
 """
 
 
-# --- Streamlit App Interface ---
-st.title("📄 Health Insurance Plan Analyzer")
+# --- Main App Interface ---
+st.title("🩺 Health Insurance Plan Analyzer")
 st.markdown("Upload a health insurance brochure (PDF) and the AI will extract the key features for you.")
 
-uploaded_file = st.file_uploader("Choose a PDF file...", type=["pdf"])
+uploaded_file = st.file_uploader("Choose a PDF file...", type=["pdf"], label_visibility="collapsed")
 
 if uploaded_file:
-    if st.button("Analyze This Brochure"):
+    if st.button("Analyze This Brochure", type="primary"):
         with st.spinner("Reading the brochure and thinking... This may take a moment. 🤔"):
-            # 1. Extract text from the uploaded PDF file
             extracted_text = pdf_to_text(uploaded_file)
 
             if extracted_text:
                 st.info("PDF processed successfully. Now sending to the AI for analysis...")
 
-                # 2. Create the final, combined prompt for the AI
-                # This is the new, improved method that combines instructions and text
                 final_prompt = f"""
                 {master_prompt}
-
                 ---
                 Here is the text from the insurance brochure PDF. Please analyze it based on the instructions I provided above:
                 ---
-
                 {extracted_text}
                 """
-
-                # 3. Call the AI with the single, combined prompt
                 try:
                     model = genai.GenerativeModel('models/gemini-1.5-flash')
                     response = model.generate_content(final_prompt)
                     
-                    # 4. Display the results
-                    st.subheader("Analysis Results:")
+                    st.subheader("📊 Analysis Results:")
                     st.markdown(response.text)
+                    st.success("Analysis Complete!")
+                    st.balloons() # The celebration animation!
                 except Exception as e:
                     st.error(f"An error occurred while communicating with the AI: {e}")
-
             else:
-                st.error("Could not extract text from the PDF. The file might be corrupted, empty, or an image-based PDF that requires OCR.")
+                st.error("Could not extract text from the PDF. The file might be corrupted or image-based.")
