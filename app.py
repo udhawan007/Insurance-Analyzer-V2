@@ -7,7 +7,7 @@ import os
 # --- Page Configuration ---
 # This MUST be the very first Streamlit command
 st.set_page_config(
-    page_title="Insurance Plan Analyzer",
+    page_title="Prism - Your heath insurance assistant",
     page_icon="⚖️",
     layout="wide"
 )
