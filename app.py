@@ -1,23 +1,3 @@
-# --- Sidebar ---
-with st.sidebar:
-    st.title("📄 About the Analyzer")
-    st.info(
-        """
-        This app uses Google's Gemini AI to analyze health insurance brochures. 
-        It extracts key features and presents them in a clear, easy-to-read table.
-
-        **Created by:** [Your Name Here]
-        """
-    )
-    st.divider()
-    st.header("How to Use")
-    st.markdown(
-        """
-        1.  **Upload a PDF** of the insurance plan.
-        2.  Click the **"Analyze This Brochure"** button.
-        3.  Review the **Analysis Results** table.
-        """
-    )
 import streamlit as st
 import google.generativeai as genai
 import PyPDF2 as pdf
