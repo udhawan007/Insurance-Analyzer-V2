@@ -7,7 +7,7 @@ import os
 # --- Page Configuration ---
 # This MUST be the very first Streamlit command
 st.set_page_config(
-    page_title="Insurance Plan Comparator",
+    page_title="Insurance Plan Analyzer",
     page_icon="⚖️",
     layout="wide"
 )
@@ -17,7 +17,7 @@ with st.sidebar:
     st.title("⚖️ About the Comparator")
     st.info(
         """
-        This app uses Google's Gemini AI to compare health insurance plans. 
+        This app uses AI to compare health insurance plans. 
         Upload two or more brochures to see a side-by-side analysis of their key features.
         """
     )
@@ -25,10 +25,10 @@ with st.sidebar:
     st.header("How to Use")
     st.markdown(
         """
-        1.  Ensure your **Google AI API Key** is set in the app's secrets.
-        2.  **Upload two or more** insurance plan PDFs on the main page.
-        3.  Click the **"Compare Plans"** button.
-        4.  Review the comparison table and summary.
+        
+        1.  **Upload two or more** insurance plan PDFs on the main page.
+        2.  Click the **"Compare Plans"** button.
+        3.  Review the comparison table and summary.
         """
     )
     st.warning("The AI analysis is for informational purposes only. Always verify details with the official policy documents.")
