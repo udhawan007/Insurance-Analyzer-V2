@@ -5,8 +5,9 @@ from io import BytesIO
 import os
 
 # --- Page Configuration ---
+# This MUST be the very first Streamlit command
 st.set_page_config(
-    page_title="Prism | AI Insurance Comparator",
+    page_title="Prism",
     page_icon="💎",
     layout="wide"
 )
@@ -22,7 +23,7 @@ with st.sidebar:
         """
     )
     st.divider()
-    st.header("ℹ️ How to Use")
+    st.header("How to Use")
     st.markdown(
         """
         1.  Ensure your **Google AI API Key** is set in the app's secrets.
@@ -48,6 +49,7 @@ except Exception as e:
 
 # --- Helper Function to Extract Text from PDF ---
 def pdf_to_text(uploaded_file):
+    """Extracts text from an uploaded PDF file."""
     try:
         file_bytes = BytesIO(uploaded_file.read())
         reader = pdf.PdfReader(file_bytes)
@@ -90,27 +92,20 @@ Please generate the Markdown table and the summary as requested.
 
 
 # --- Main App Interface ---
+st.title("💎 Prism")
+st.subheader("Your AI Health Insurance Assistant")
+st.markdown("---") # Adds a divider line
 
-# Using columns for a more professional header layout
-col1, col2 = st.columns([1, 4])
-with col1:
-    st.image("logo.png", width=150) # Using the local file you uploaded
-with col2:
-    st.title("Prism")
-    st.subheader("Your AI Health Insurance Assistant")
+# Use accept_multiple_files=True to allow multiple uploads
+uploaded_files = st.file_uploader("Upload two or more insurance brochures (PDF) to compare:", type=["pdf"], accept_multiple_files=True)
 
-st.divider()
-
-st.markdown("##### Compare health insurance plans effortlessly. Upload two brochures to get started.")
-
-uploaded_files = st.file_uploader("Upload your PDF brochures here", type=["pdf"], accept_multiple_files=True, label_visibility="collapsed")
-
+# Only show the compare button if 2 or more files are uploaded
 if uploaded_files and len(uploaded_files) >= 2:
-    st.info(f"You have uploaded {len(uploaded_files)} files. The first two will be compared.")
     if st.button(f"Compare {len(uploaded_files)} Plans", type="primary"):
         with st.spinner(f"Reading and analyzing {len(uploaded_files)} brochures... This may take a moment. 🤔"):
             
             plan_texts = []
+            # We limit the comparison to the first 2 files for a clear side-by-side table
             for i, file in enumerate(uploaded_files[:2]):
                 text = pdf_to_text(file)
                 if "Error reading" in text:
@@ -133,7 +128,4 @@ if uploaded_files and len(uploaded_files) >= 2:
                 st.error(f"An error occurred while communicating with the AI: {e}")
 
 elif uploaded_files and len(uploaded_files) < 2:
-    st.warning("⚠️ Please upload at least two PDF files to enable the comparison feature.")
-else:
-    # This is the placeholder image when no files are uploaded
-    st.image("main_image.png")
+    st.warning("Please upload at least two PDF files to enable the comparison feature.")
