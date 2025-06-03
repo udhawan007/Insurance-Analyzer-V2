@@ -1,0 +1,17 @@
+# .streamlit/config.toml
+
+[theme]
+# A nice teal color for buttons and interactive elements
+primaryColor="#14B8A6"
+
+# A very dark, almost black, background
+backgroundColor="#020617"
+
+# A slightly lighter dark color for containers like the sidebar
+secondaryBackgroundColor="#0F172A"
+
+# A light grey/white for good contrast on the dark background
+textColor="#E2E8F0"
+
+# The font for the app
+font="sans serif"
