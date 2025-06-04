@@ -60,18 +60,49 @@ def pdf_to_text(file_bytes, source_name="file"):
         return f"Error reading PDF from {source_name}: {e}"
 
 # --- Prompts ---
+# This prompt now includes the new, more detailed metrics
 single_analysis_prompt = """
 You are an expert AI Health Insurance Analyst. Your task is to meticulously analyze the provided text from a health insurance brochure and extract specific, vital information.
 
 Present the extracted information **only in a Markdown table format** with two columns: 'Feature' and 'Details & Conditions'. If information for a feature is not found, state "Not Mentioned".
 
-**Features to Extract:** Room Rent Limit, Daycare Procedures, Co-payment, Pre & Post-Hospitalization, Restoration Benefit, Lifelong Renewability, No Claim Bonus (NCB), PED Waiting Period, Consumable Cover, Maternity Benefits.
+**Features to Extract:** - Room Rent Limit
+- Co-payment
+- Pre & Post-Hospitalization
+- Daycare Procedures
+- Domiciliary Hospitalization
+- Organ Donor Expenses
+- Annual Health Check-ups
+- Restoration Benefit
+- No Claim Bonus (NCB)
+- Consumable Cover
+- AYUSH Treatment Coverage
+- Maternity Benefits
+- PED Waiting Period
+- Major Exclusions (Summarize the top 3-5 key exclusions mentioned)
+- Lifelong Renewability
 """
 
+# This comparison prompt now includes the new, more detailed metrics
 comparison_prompt = """
 You are an expert AI Health Insurance Analyst specializing in comparative analysis. Analyze the text from two brochures ('Plan 1' and 'Plan 2') and create a side-by-side comparison table with columns: 'Feature', 'Plan 1', 'Plan 2'. If info is missing, state "Not Mentioned". After the table, add a '### Key Differences Summary' with 3-4 bullet points.
 
-**Features to Compare:** Room Rent Limit, Daycare Procedures, Co-payment, Pre & Post-Hospitalization, Restoration Benefit, Lifelong Renewability, No Claim Bonus (NCB), PED Waiting Period, Consumable Cover, Maternity Benefits.
+**Features to Compare:**
+- Room Rent Limit
+- Co-payment
+- Pre & Post-Hospitalization
+- Daycare Procedures
+- Domiciliary Hospitalization
+- Organ Donor Expenses
+- Annual Health Check-ups
+- Restoration Benefit
+- No Claim Bonus (NCB)
+- Consumable Cover
+- AYUSH Treatment Coverage
+- Maternity Benefits
+- PED Waiting Period
+- Major Exclusions (Briefly list key exclusions for each plan)
+- Lifelong Renewability
 """
 
 
