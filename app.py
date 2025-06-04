@@ -27,7 +27,7 @@ with st.sidebar:
     with st.expander("✍️ Provide Feedback"):
         st.markdown("Your feedback is crucial for improving Prism! Please share your thoughts, report bugs, or suggest new features.")
         # IMPORTANT: Replace the placeholder link below with your actual Google Form link
-        st.link_button("Go to Feedback Form", "YOUR_GOOGLE_FORM_LINK_HERE")
+        st.link_button("Go to Feedback Form", "https://forms.gle/NVqyWQY79Hx3wSFo9")
 
     with st.expander("📜 Disclaimer"):
         st.warning(
