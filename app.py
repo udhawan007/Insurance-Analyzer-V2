@@ -67,8 +67,8 @@ with st.sidebar:
         )
     
     st.divider()
-    st.markdown("Created by **Udhayveer Singh**")
-    st.markdown("[Connect on LinkedIn](https://www.linkedin.com/in/udhaysingh007)")
+    st.markdown("Created by **Udit Dhawan**")
+    
 
 
 # --- AI and API Configuration ---
