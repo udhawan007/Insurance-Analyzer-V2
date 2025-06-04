@@ -3,11 +3,12 @@ import google.generativeai as genai
 import PyPDF2 as pdf
 from io import BytesIO
 import os
+import requests
+from googleapiclient.discovery import build # New import for Google Search
 
 # --- Page Configuration ---
-# This MUST be the very first Streamlit command
 st.set_page_config(
-    page_title="Prism",
+    page_title="Prism | AI Insurance Comparator",
     page_icon="💎",
     layout="wide"
 )
@@ -18,114 +19,138 @@ with st.sidebar:
     st.info(
         """
         **Prism** is an AI-powered assistant designed to bring clarity to complex health insurance plans. 
-        
-        It compares policy brochures side-by-side, helping you understand the key differences.
+        It can compare uploaded brochures or find a policy online to analyze.
         """
     )
     st.divider()
-    st.header("How to Use")
+    st.header("ℹ️ How to Use")
     st.markdown(
         """
-        
-        1.  **Upload two or more** insurance plan PDFs on the main page.
-        2.  Click the **"Compare Plans"** button.
-        3.  Review the comparison table and summary.
+        1.  Choose your method: **Search Online** or **Upload PDFs**.
+        2.  Enter a plan name or upload files.
+        3.  Click the Analyze/Compare button.
         """
     )
     st.warning("The AI analysis is for informational purposes only. Always verify details with the official policy documents.")
 
-
 # --- AI and API Configuration ---
 try:
-    api_key = st.secrets["GOOGLE_API_KEY"]
-    genai.configure(api_key=api_key)
-except KeyError:
-    st.error("🔴 **Error:** `GOOGLE_API_KEY` not found. Please go to 'Manage app' -> 'Secrets' and add your key.")
-    st.stop()
-except Exception as e:
-    st.error(f"🔴 **Error configuring the AI model:** {e}")
+    GEMINI_API_KEY = st.secrets["GOOGLE_API_KEY"]
+    SEARCH_API_KEY = st.secrets["GOOGLE_API_KEY"] # Using the same key
+    SEARCH_ENGINE_ID = st.secrets["SEARCH_ENGINE_ID"]
+    genai.configure(api_key=GEMINI_API_KEY)
+except KeyError as e:
+    st.error(f"🔴 **Error:** Secret key '{e.args[0]}' not found. Please add it to your Streamlit Secrets.")
     st.stop()
 
-
-# --- Helper Function to Extract Text from PDF ---
-def pdf_to_text(uploaded_file):
-    """Extracts text from an uploaded PDF file."""
+# --- Helper Functions ---
+def pdf_to_text(file_bytes, source_name="file"):
     try:
-        file_bytes = BytesIO(uploaded_file.read())
-        reader = pdf.PdfReader(file_bytes)
+        pdf_file = BytesIO(file_bytes)
+        reader = pdf.PdfReader(pdf_file)
         text = ""
         for page in reader.pages:
             text += (page.extract_text() or "") + "\n"
         return text
     except Exception as e:
-        return f"Error reading {uploaded_file.name}: {e}"
+        return f"Error reading PDF from {source_name}: {e}"
 
-# --- The Comparison Prompt ---
-comparison_prompt = """
-You are an expert AI Health Insurance Analyst specializing in comparative analysis. Your task is to meticulously analyze the text from two separate insurance policy brochures, which will be provided to you labeled as 'Plan 1' and 'Plan 2'.
+def find_brochure_online(plan_name):
+    """Uses Google Search API to find a PDF brochure."""
+    try:
+        service = build("customsearch", "v1", developerKey=SEARCH_API_KEY)
+        query = f"{plan_name} health insurance brochure filetype:pdf"
+        res = service.cse().list(q=query, cx=SEARCH_ENGINE_ID, num=1).execute()
+        
+        if 'items' in res and len(res['items']) > 0:
+            top_result = res['items'][0]
+            pdf_url = top_result['link']
+            return pdf_url
+        else:
+            return None
+    except Exception as e:
+        return f"Error during search: {e}"
 
-Your goal is to create a single, comprehensive side-by-side comparison table.
+# --- Prompts ---
+# Using a single-analysis prompt for the search feature
+single_analysis_prompt = """
+You are an expert AI Health Insurance Analyst. Your task is to meticulously analyze the provided text from a health insurance brochure and extract specific, vital information.
 
-**Instructions:**
-1.  The table **must** have exactly three columns: 'Feature', 'Plan 1', and 'Plan 2'.
-2.  For each feature listed below, find the corresponding information in the text for Plan 1 and Plan 2 and place it in the respective columns.
-3.  If information for a specific feature is not found in a plan's text, you **must** state "Not Mentioned" in that cell. Do not leave it blank.
-4.  After the table, add a new section under a heading `### Key Differences Summary`. In this section, write 3-4 bullet points summarizing the most important differences a customer should consider.
+Present the extracted information **only in a Markdown table format** with two columns: 'Feature' and 'Details & Conditions'. If information for a feature is not found, state "Not Mentioned".
 
-**Features to Compare:**
-
-| Feature                      |
-| :--------------------------- |
-| Room Rent Limit              |
-| Daycare Procedures           |
-| Co-payment                   |
-| Pre & Post-Hospitalization   |
-| Restoration Benefit          |
-| Lifelong Renewability        |
-| No Claim Bonus (NCB)         |
-| PED Waiting Period           |
-| Consumable Cover             |
-| Maternity Benefits           |
-
-Please generate the Markdown table and the summary as requested.
+**Features to Extract:** Room Rent Limit, Daycare Procedures, Co-payment, Pre & Post-Hospitalization, Restoration Benefit, Lifelong Renewability, No Claim Bonus (NCB), PED Waiting Period, Consumable Cover, Maternity Benefits.
 """
 
+comparison_prompt = """
+You are an expert AI Health Insurance Analyst specializing in comparative analysis. Analyze the text from two brochures ('Plan 1' and 'Plan 2') and create a side-by-side comparison table with columns: 'Feature', 'Plan 1', 'Plan 2'. If info is missing, state "Not Mentioned". After the table, add a '### Key Differences Summary' with 3-4 bullet points.
+
+**Features to Compare:** Room Rent Limit, Daycare Procedures, Co-payment, Pre & Post-Hospitalization, Restoration Benefit, Lifelong Renewability, No Claim Bonus (NCB), PED Waiting Period, Consumable Cover, Maternity Benefits.
+"""
 
 # --- Main App Interface ---
 st.title("💎 Prism")
 st.subheader("Your AI Health Insurance Assistant")
-st.markdown("---") # Adds a divider line
+st.divider()
 
-# Use accept_multiple_files=True to allow multiple uploads
-uploaded_files = st.file_uploader("Upload two or more insurance brochures (PDF) to compare:", type=["pdf"], accept_multiple_files=True)
+tab1, tab2 = st.tabs(["🔍 Search & Analyze", "📄 Compare Uploaded PDFs"])
 
-# Only show the compare button if 2 or more files are uploaded
-if uploaded_files and len(uploaded_files) >= 2:
-    if st.button(f"Compare {len(uploaded_files)} Plans", type="primary"):
-        with st.spinner(f"Reading and analyzing {len(uploaded_files)} brochures... This may take a moment. 🤔"):
+# --- TAB 1: SEARCH & ANALYZE ---
+with tab1:
+    st.markdown("##### Enter the name of a health insurance plan to find and analyze it.")
+    plan_name_input = st.text_input("Enter Plan Name", placeholder="e.g., Star Health Comprehensive Plan")
+
+    if st.button("Find & Analyze Plan", type="primary"):
+        if not plan_name_input:
+            st.warning("Please enter a plan name.")
+        else:
+            with st.spinner(f"Searching for '{plan_name_input}' brochure online..."):
+                pdf_url = find_brochure_online(plan_name_input)
             
+            if pdf_url and "Error" not in pdf_url:
+                st.success(f"Found brochure: {pdf_url}")
+                with st.spinner("Downloading and analyzing the plan..."):
+                    try:
+                        response = requests.get(pdf_url, timeout=10)
+                        response.raise_for_status()
+                        extracted_text = pdf_to_text(response.content, source_name=plan_name_input)
+
+                        if "Error reading" not in extracted_text:
+                            final_prompt = f"{single_analysis_prompt}\n\n--- DOCUMENT TEXT ---\n\n{extracted_text}"
+                            model = genai.GenerativeModel('models/gemini-1.5-flash')
+                            ai_response = model.generate_content(final_prompt)
+                            st.subheader(f"📊 Analysis for {plan_name_input}")
+                            st.markdown(ai_response.text)
+                            st.balloons()
+                        else:
+                            st.error(extracted_text)
+                    except requests.exceptions.RequestException as e:
+                        st.error(f"Failed to download file from URL: {e}")
+            else:
+                st.error(f"Could not find a suitable PDF brochure for '{plan_name_input}'. Please try a more specific name or use the upload feature.")
+
+# --- TAB 2: COMPARE UPLOADED PDFs ---
+with tab2:
+    st.markdown("##### Compare plans by uploading their brochures.")
+    uploaded_files = st.file_uploader("Upload two or more PDF brochures here", type=["pdf"], accept_multiple_files=True, label_visibility="collapsed")
+
+    if uploaded_files and len(uploaded_files) >= 2:
+        if st.button(f"Compare {len(uploaded_files)} Uploaded Plans", type="primary"):
             plan_texts = []
-            # We limit the comparison to the first 2 files for a clear side-by-side table
             for i, file in enumerate(uploaded_files[:2]):
-                text = pdf_to_text(file)
-                if "Error reading" in text:
-                    st.error(text)
-                    st.stop()
-                plan_texts.append(f"--- PLAN {i+1} ({file.name}) TEXT START ---\n\n{text}\n\n--- PLAN {i+1} TEXT END ---")
-
-            final_prompt_for_ai = f"{comparison_prompt}\n\n{''.join(plan_texts)}"
-
-            try:
+                with st.spinner(f"Reading {file.name}..."):
+                    text = pdf_to_text(file.read(), source_name=file.name)
+                    if "Error reading" in text:
+                        st.error(text); st.stop()
+                    plan_texts.append(f"--- PLAN {i+1} ({file.name}) TEXT START ---\n\n{text}\n\n--- PLAN {i+1} TEXT END ---")
+            
+            with st.spinner("AI is analyzing the plans..."):
+                final_prompt_for_ai = f"{comparison_prompt}\n\n{''.join(plan_texts)}"
                 model = genai.GenerativeModel('models/gemini-1.5-flash')
                 response = model.generate_content(final_prompt_for_ai)
-                
                 st.subheader("📊 Comparison Results")
                 st.markdown(response.text)
                 st.success("Comparison Complete!")
                 st.balloons()
 
-            except Exception as e:
-                st.error(f"An error occurred while communicating with the AI: {e}")
-
-elif uploaded_files and len(uploaded_files) < 2:
-    st.warning("Please upload at least two PDF files to enable the comparison feature.")
+    elif uploaded_files and len(uploaded_files) < 2:
+        st.warning("⚠️ Please upload at least two PDF files to compare.")
