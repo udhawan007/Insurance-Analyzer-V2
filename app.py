@@ -7,7 +7,7 @@ import requests
 
 # --- Page Configuration ---
 st.set_page_config(
-    page_title="Prism | AI Insurance Comparator",
+    page_title="Prism | AI Insurance Analyzer",
     page_icon="💎",
     layout="wide"
 )
@@ -19,15 +19,15 @@ with st.sidebar:
         """
         **Prism** is an AI-powered assistant designed to bring clarity to complex health insurance plans. 
         
-        It can analyze a single plan from a web link or compare uploaded brochures side-by-side.
+        It can analyze a single plan from a web link or analyze/compare uploaded brochures.
         """
     )
     st.divider()
     st.header("ℹ️ How to Use")
     st.markdown(
         """
-        1.  Choose your method: **Analyze from Link** or **Compare Uploads**.
-        2.  Provide the URL or PDF files.
+        1.  Choose your method: **Analyze from Link** or **Analyze Uploads**.
+        2.  Provide the URL or PDF file(s).
         3.  Click the corresponding button to start the analysis.
         """
     )
@@ -80,7 +80,7 @@ st.title("💎 Prism")
 st.subheader("Your AI Health Insurance Assistant")
 st.divider()
 
-tab1, tab2 = st.tabs(["🔗 Analyze from Link", "📄 Compare Uploaded PDFs"])
+tab1, tab2 = st.tabs(["🔗 Analyze from Link", "📄 Analyze Uploaded PDFs"])
 
 # --- TAB 1: ANALYZE FROM LINK ---
 with tab1:
@@ -103,19 +103,39 @@ with tab1:
                         ai_response = model.generate_content(final_prompt)
                         st.subheader("📊 Analysis from Link")
                         st.markdown(ai_response.text)
-                        st.balloons()
+                        st.success("Analysis Complete!")
                     else:
                         st.error(extracted_text)
                 except requests.exceptions.RequestException as e:
                     st.error(f"Failed to download or access the file from the URL: {e}")
 
-# --- TAB 2: COMPARE UPLOADED PDFs ---
+# --- TAB 2: ANALYZE/COMPARE UPLOADED PDFs ---
 with tab2:
-    st.markdown("##### Compare plans by uploading their brochures.")
-    uploaded_files = st.file_uploader("Upload two or more PDF brochures here", type=["pdf"], accept_multiple_files=True, label_visibility="collapsed", key="upload_files")
+    st.markdown("##### Upload one PDF for a detailed analysis or two PDFs for a side-by-side comparison.")
+    uploaded_files = st.file_uploader("Upload PDF brochures here", type=["pdf"], accept_multiple_files=True, label_visibility="collapsed", key="upload_files")
 
-    if uploaded_files and len(uploaded_files) >= 2:
-        if st.button(f"Compare {len(uploaded_files)} Uploaded Plans", type="primary", key="compare_button"):
+    # Scenario 1: One file is uploaded
+    if uploaded_files and len(uploaded_files) == 1:
+        st.info("One file uploaded. Ready for a single plan analysis.")
+        if st.button("Analyze Single Plan", type="primary", key="analyze_single_button"):
+            single_file = uploaded_files[0]
+            with st.spinner(f"Reading and analyzing {single_file.name}..."):
+                extracted_text = pdf_to_text(single_file.read(), source_name=single_file.name)
+                
+                if "Error reading" not in extracted_text:
+                    final_prompt = f"{single_analysis_prompt}\n\n--- DOCUMENT TEXT ---\n\n{extracted_text}"
+                    model = genai.GenerativeModel('models/gemini-1.5-flash')
+                    response = model.generate_content(final_prompt)
+                    st.subheader(f"📊 Analysis for {single_file.name}")
+                    st.markdown(response.text)
+                    st.success("Analysis Complete!")
+                else:
+                    st.error(extracted_text)
+
+    # Scenario 2: Two or more files are uploaded
+    elif uploaded_files and len(uploaded_files) >= 2:
+        st.info(f"{len(uploaded_files)} files uploaded. The first two will be compared.")
+        if st.button(f"Compare {len(uploaded_files)} Plans", type="primary", key="compare_button"):
             plan_texts = []
             for i, file in enumerate(uploaded_files[:2]):
                 with st.spinner(f"Reading {file.name}..."):
@@ -131,7 +151,3 @@ with tab2:
                 st.subheader("📊 Comparison Results")
                 st.markdown(response.text)
                 st.success("Comparison Complete!")
-                st.balloons()
-
-    elif uploaded_files and len(uploaded_files) < 2:
-        st.warning("⚠️ Please upload at least two PDF files to compare.")
