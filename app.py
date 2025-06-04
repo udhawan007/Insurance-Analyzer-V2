@@ -4,7 +4,7 @@ import PyPDF2 as pdf
 from io import BytesIO
 import os
 import requests
-from googleapiclient.discovery import build # New import for Google Search
+from googleapiclient.discovery import build
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -19,19 +19,21 @@ with st.sidebar:
     st.info(
         """
         **Prism** is an AI-powered assistant designed to bring clarity to complex health insurance plans. 
-        It can compare uploaded brochures or find a policy online to analyze.
+        
+        It can search for policies online, analyze a single plan from a web link, or compare uploaded brochures side-by-side.
         """
     )
     st.divider()
     st.header("ℹ️ How to Use")
     st.markdown(
         """
-        1.  Choose your method: **Search Online** or **Upload PDFs**.
-        2.  Enter a plan name or upload files.
-        3.  Click the Analyze/Compare button.
+        1.  Choose your method: **Search**, **Analyze from Link**, or **Compare Uploads**.
+        2.  Provide the plan name, URL, or PDF files.
+        3.  Click the corresponding button to start the analysis.
         """
     )
     st.warning("The AI analysis is for informational purposes only. Always verify details with the official policy documents.")
+
 
 # --- AI and API Configuration ---
 try:
@@ -56,23 +58,29 @@ def pdf_to_text(file_bytes, source_name="file"):
         return f"Error reading PDF from {source_name}: {e}"
 
 def find_brochure_online(plan_name):
-    """Uses Google Search API to find a PDF brochure."""
+    """Uses Google Search API to find a PDF brochure, checking top results."""
     try:
         service = build("customsearch", "v1", developerKey=SEARCH_API_KEY)
         query = f"{plan_name} health insurance brochure filetype:pdf"
-        res = service.cse().list(q=query, cx=SEARCH_ENGINE_ID, num=1).execute()
+        res = service.cse().list(q=query, cx=SEARCH_ENGINE_ID, num=3).execute()
         
         if 'items' in res and len(res['items']) > 0:
-            top_result = res['items'][0]
-            pdf_url = top_result['link']
-            return pdf_url
+            for item in res['items']:
+                pdf_url = item.get('link')
+                if pdf_url and pdf_url.lower().endswith('.pdf'):
+                    try:
+                        head_response = requests.head(pdf_url, timeout=5)
+                        if head_response.status_code == 200 and 'application/pdf' in head_response.headers.get('Content-Type',''):
+                            return pdf_url
+                    except requests.exceptions.RequestException:
+                        continue
+            return "Found search results, but no direct PDF link among the top ones."
         else:
             return None
     except Exception as e:
         return f"Error during search: {e}"
 
 # --- Prompts ---
-# Using a single-analysis prompt for the search feature
 single_analysis_prompt = """
 You are an expert AI Health Insurance Analyst. Your task is to meticulously analyze the provided text from a health insurance brochure and extract specific, vital information.
 
@@ -92,21 +100,21 @@ st.title("💎 Prism")
 st.subheader("Your AI Health Insurance Assistant")
 st.divider()
 
-tab1, tab2 = st.tabs(["🔍 Search & Analyze", "📄 Compare Uploaded PDFs"])
+tab1, tab2, tab3 = st.tabs(["🔍 Search & Analyze", "🔗 Analyze from Link", "📄 Compare Uploaded PDFs"])
 
 # --- TAB 1: SEARCH & ANALYZE ---
 with tab1:
     st.markdown("##### Enter the name of a health insurance plan to find and analyze it.")
-    plan_name_input = st.text_input("Enter Plan Name", placeholder="e.g., Star Health Comprehensive Plan")
+    plan_name_input = st.text_input("Enter Plan Name", placeholder="e.g., Star Health Comprehensive Plan", key="search_plan_name")
 
-    if st.button("Find & Analyze Plan", type="primary"):
+    if st.button("Find & Analyze Plan", type="primary", key="search_button"):
         if not plan_name_input:
             st.warning("Please enter a plan name.")
         else:
             with st.spinner(f"Searching for '{plan_name_input}' brochure online..."):
                 pdf_url = find_brochure_online(plan_name_input)
             
-            if pdf_url and "Error" not in pdf_url:
+            if pdf_url and "Error" not in pdf_url and "Found search results" not in pdf_url:
                 st.success(f"Found brochure: {pdf_url}")
                 with st.spinner("Downloading and analyzing the plan..."):
                     try:
@@ -126,15 +134,43 @@ with tab1:
                     except requests.exceptions.RequestException as e:
                         st.error(f"Failed to download file from URL: {e}")
             else:
-                st.error(f"Could not find a suitable PDF brochure for '{plan_name_input}'. Please try a more specific name or use the upload feature.")
+                st.error(f"Could not find a suitable PDF brochure for '{plan_name_input}'. Please try a more specific name or use another method.")
 
-# --- TAB 2: COMPARE UPLOADED PDFs ---
+# --- TAB 2: ANALYZE FROM LINK (The New Feature) ---
 with tab2:
+    st.markdown("##### Analyze a single plan by providing a direct link to its PDF brochure.")
+    pdf_url_input = st.text_input("Enter URL of a Single PDF Brochure", placeholder="https://.../policy_brochure.pdf", key="link_url")
+
+    if st.button("Analyze from Link", type="primary", key="link_button"):
+        if not pdf_url_input:
+            st.warning("Please enter a URL.")
+        else:
+            with st.spinner("Downloading and analyzing the plan from the link..."):
+                try:
+                    response = requests.get(pdf_url_input, timeout=10)
+                    response.raise_for_status()
+                    extracted_text = pdf_to_text(response.content, source_name="the provided URL")
+
+                    if "Error reading" not in extracted_text:
+                        final_prompt = f"{single_analysis_prompt}\n\n--- DOCUMENT TEXT ---\n\n{extracted_text}"
+                        model = genai.GenerativeModel('models/gemini-1.5-flash')
+                        ai_response = model.generate_content(final_prompt)
+                        st.subheader("📊 Analysis from Link")
+                        st.markdown(ai_response.text)
+                        st.balloons()
+                    else:
+                        st.error(extracted_text)
+                except requests.exceptions.RequestException as e:
+                    st.error(f"Failed to download or access the file from the URL: {e}")
+
+
+# --- TAB 3: COMPARE UPLOADED PDFs ---
+with tab3:
     st.markdown("##### Compare plans by uploading their brochures.")
-    uploaded_files = st.file_uploader("Upload two or more PDF brochures here", type=["pdf"], accept_multiple_files=True, label_visibility="collapsed")
+    uploaded_files = st.file_uploader("Upload two or more PDF brochures here", type=["pdf"], accept_multiple_files=True, label_visibility="collapsed", key="upload_files")
 
     if uploaded_files and len(uploaded_files) >= 2:
-        if st.button(f"Compare {len(uploaded_files)} Uploaded Plans", type="primary"):
+        if st.button(f"Compare {len(uploaded_files)} Uploaded Plans", type="primary", key="compare_button"):
             plan_texts = []
             for i, file in enumerate(uploaded_files[:2]):
                 with st.spinner(f"Reading {file.name}..."):
