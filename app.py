@@ -62,21 +62,23 @@ def find_brochure_online(plan_name):
     try:
         service = build("customsearch", "v1", developerKey=SEARCH_API_KEY)
         query = f"{plan_name} health insurance brochure filetype:pdf"
+        # Fetch top 3 results to increase chances of finding a direct PDF
         res = service.cse().list(q=query, cx=SEARCH_ENGINE_ID, num=3).execute()
         
         if 'items' in res and len(res['items']) > 0:
             for item in res['items']:
                 pdf_url = item.get('link')
                 if pdf_url and pdf_url.lower().endswith('.pdf'):
+                    # Check if the URL is accessible
                     try:
                         head_response = requests.head(pdf_url, timeout=5)
                         if head_response.status_code == 200 and 'application/pdf' in head_response.headers.get('Content-Type',''):
-                            return pdf_url
+                            return pdf_url # Found a valid, accessible PDF link
                     except requests.exceptions.RequestException:
-                        continue
-            return "Found search results, but no direct PDF link among the top ones."
+                        continue # Try next link if this one fails
+            return "Found search results, but no direct PDF link among the top ones." # No PDF link found in top results
         else:
-            return None
+            return None # No items found at all
     except Exception as e:
         return f"Error during search: {e}"
 
