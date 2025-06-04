@@ -51,8 +51,8 @@ with st.sidebar:
     
     st.divider()
     # Add your personal/professional links here
-    st.markdown("Created by **Your Name**")
-    st.markdown("[Connect on LinkedIn](https://www.linkedin.com/in/your-profile-url)")
+    st.markdown("Created by **Udit Dhawan**")
+   
 
 
 # --- AI and API Configuration ---
